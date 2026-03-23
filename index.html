@@ -12,6 +12,18 @@
   --text:#e8ecf5; --text2:#8892ab; --text3:#4a5270;
   --radius:12px; --shadow:0 4px 24px rgba(0,0,0,0.4);
 }
+
+/* LIGHT MODE */
+body.light {
+  --bg:#f0f2f7; --surface:#ffffff; --surface2:#e8ecf5; --border:#d0d7e8;
+  --text:#1a1f2e; --text2:#4a5270; --text3:#8892ab;
+  --shadow:0 4px 24px rgba(0,0,0,0.10);
+}
+body.light .vf-card:hover{box-shadow:0 5px 18px rgba(0,0,0,0.12);}
+body.light .modal{box-shadow:0 24px 80px rgba(0,0,0,0.18);}
+body.light .pipeline-bar-fill{color:white;}
+body.light input,body.light select,body.light textarea{color:var(--text);}
+
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
 h1,h2,h3,h4{font-family:'Syne',sans-serif;}
@@ -226,7 +238,12 @@ tr:hover td{background:var(--surface2);}
   <div class="nav-item" onclick="showView('analytics')"><span>◉</span> Analytics</div>
   <div class="nav-section">Config</div>
   <div class="nav-item" onclick="showView('settings')"><span>⚙</span> Settings</div>
-  <div class="sidebar-bottom"><div style="font-size:11px;color:var(--text3)">Internal HR · v1.2</div></div>
+  <div class="sidebar-bottom">
+  <button onclick="toggleMode()" id="mode-btn" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text2);font-family:'DM Sans';font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.15s;">
+    <span id="mode-icon">☀️</span><span id="mode-label">Light Mode</span>
+  </button>
+  <div style="font-size:11px;color:var(--text3);margin-top:10px;">Internal HR · v1.2</div>
+</div>
 </aside>
 
 <main class="main">
@@ -757,6 +774,7 @@ function renderList(){
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="openDetail('${p.id}')">View</button>
         <button class="btn btn-edit btn-sm" onclick="curId='${p.id}';openEdit()" style="margin-left:4px;">✏ Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="delFromList('${p.id}')" style="margin-left:4px;">🗑 Delete</button>
       </td>
     </tr>`;
   }).join('');
@@ -881,6 +899,13 @@ function delPos(){
   positions=positions.filter(p=>p.id!==curId);
   save(); closeM('modal-detail'); syncAll();
   toast('🗑 Deleted');
+}
+function delFromList(id){
+  const p=positions.find(x=>x.id===id); if(!p) return;
+  if(!confirm('ลบ "'+p.title+'" ออกจากระบบ? ไม่สามารถกู้คืนได้')) return;
+  positions=positions.filter(x=>x.id!==id);
+  save(); syncAll();
+  toast('🗑 ลบเรียบร้อยแล้ว');
 }
 
 // ══════════════════════════════════════
@@ -1041,6 +1066,21 @@ function toast(msg){
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
 }
+
+// THEME
+function toggleMode(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('mode-icon').textContent  = isLight ? '🌙' : '☀️';
+  document.getElementById('mode-label').textContent = isLight ? 'Dark Mode' : 'Light Mode';
+  localStorage.setItem('hf_theme', isLight ? 'light' : 'dark');
+}
+(function(){
+  if(localStorage.getItem('hf_theme')==='light'){
+    document.body.classList.add('light');
+    document.getElementById('mode-icon').textContent='🌙';
+    document.getElementById('mode-label').textContent='Dark Mode';
+  }
+})();
 
 // INIT
 renderDash();
