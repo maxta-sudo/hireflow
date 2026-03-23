@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireFlow — Recruitment Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14; --surface:#14171f; --surface2:#1c2030; --border:#252a38;
+  --accent:#5b8dff; --accent2:#ff6b6b; --accent3:#2ecc71; --accent4:#f0c040; --accent5:#c084fc;
+  --text:#e8ecf5; --text2:#8892ab; --text3:#4a5270;
+  --radius:12px; --shadow:0 4px 24px rgba(0,0,0,0.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;}
+
+.layout{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;}
+.logo{padding:0 20px 24px;}
+.logo h1{font-size:20px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;}
+.logo span{font-size:11px;color:var(--text3);display:block;margin-top:2px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--text2);font-size:13.5px;font-weight:500;border-left:3px solid transparent;transition:all 0.15s;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(91,141,255,0.07);}
+.nav-section{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;padding:16px 20px 6px;font-family:'Syne';}
+.sidebar-bottom{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);}
+.badge-red{background:var(--accent2);color:white;font-size:11px;font-weight:700;border-radius:100px;padding:2px 7px;margin-left:auto;}
+
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;flex-wrap:wrap;}
+.topbar h2{font-size:18px;font-weight:700;flex:1;}
+.content{padding:24px;flex:1;}
+.view{display:none;} .view.active{display:block;}
+
+.btn{padding:8px 16px;border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;}
+.btn-primary{background:var(--accent);color:white;} .btn-primary:hover{background:#7aa3ff;}
+.btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border);} .btn-ghost:hover{color:var(--text);border-color:var(--text3);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-danger{background:rgba(255,107,107,0.15);color:var(--accent2);border:1px solid rgba(255,107,107,0.3);}
+.btn-edit{background:rgba(91,141,255,0.1);color:var(--accent);border:1px solid rgba(91,141,255,0.25);}
+
+.search-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'DM Sans';font-size:13px;outline:none;width:190px;}
+.search-box:focus{border-color:var(--accent);}
+
+/* STAT CARDS */
+.stats-row{display:grid;gap:14px;margin-bottom:22px;}
+.s5{grid-template-columns:repeat(5,1fr);}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--accent));}
+.stat-num{font-size:26px;font-weight:800;font-family:'Syne';margin-bottom:4px;}
+.stat-label{font-size:12px;color:var(--text2);}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+
+/* TAGS */
+.tag{font-size:10px;padding:2px 7px;border-radius:100px;font-weight:500;background:rgba(255,255,255,0.06);color:var(--text2);}
+.ph{background:rgba(255,107,107,0.12);color:#ff8a8a;}
+.pm{background:rgba(240,192,64,0.12);color:#f0c040;}
+.pl{background:rgba(46,204,113,0.12);color:#2ecc71;}
+.stage-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600;font-family:'Syne';}
+.stage-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;}
+.modal-bg.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.6);animation:sIn 0.2s ease;}
+@keyframes sIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.modal-head{padding:22px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.modal-head h3{font-size:17px;font-weight:700;flex:1;}
+.modal-close{background:var(--surface2);border:none;color:var(--text2);font-size:16px;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:18px 22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+
+.form-group{margin-bottom:14px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500;}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 11px;color:var(--text);font-family:'DM Sans';font-size:13px;outline:none;transition:border-color 0.15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+select option{background:var(--surface2);}
+textarea{resize:vertical;min-height:75px;}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);font-family:'Syne';font-weight:700;padding:10px 13px;border-bottom:1px solid var(--border);text-align:left;}
+td{padding:11px 13px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr:hover td{background:var(--surface2);}
+
+/* DETAIL */
+.stage-progress{display:flex;margin:14px 0;}
+.stage-step{flex:1;padding:6px 4px;text-align:center;font-size:10px;font-weight:600;font-family:'Syne';text-transform:uppercase;letter-spacing:0.3px;background:var(--surface2);color:var(--text3);transition:all 0.2s;}
+.stage-step:first-child{border-radius:6px 0 0 6px;} .stage-step:last-child{border-radius:0 6px 6px 0;}
+.stage-step.active{background:var(--sc,var(--accent));color:white;}
+.stage-step.done{background:rgba(91,141,255,0.15);color:var(--accent);}
+.detail-section{margin-bottom:16px;}
+.detail-section h4{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:'Syne';}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.info-item label{margin-bottom:2px;} .info-item .val{font-size:13px;color:var(--text);font-weight:500;}
+.timeline-bar{background:var(--surface2);border-radius:100px;height:5px;margin-top:5px;overflow:hidden;}
+.timeline-fill{height:100%;border-radius:100px;transition:width 0.3s;}
+.timeline-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:4px;}
+.move-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.act-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.act-item:last-child{border-bottom:none;}
+.act-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);margin-top:3px;flex-shrink:0;}
+.act-time{font-size:11px;color:var(--text3);white-space:nowrap;}
+
+/* EMAIL */
+.etmpls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.etmpl-btn{font-size:11px;padding:4px 10px;border-radius:100px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:'DM Sans';transition:all 0.15s;}
+.etmpl-btn:hover{color:var(--accent);border-color:var(--accent);}
+
+/* REMINDERS */
+.rem-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;margin-bottom:11px;display:flex;align-items:flex-start;gap:13px;}
+.rem-card.crit{border-left:4px solid var(--accent2);} .rem-card.warn{border-left:4px solid var(--accent4);}
+.rem-icon{font-size:20px;} .rem-body{flex:1;}
+.rem-title{font-size:13.5px;font-weight:600;margin-bottom:2px;}
+.rem-detail{font-size:11px;color:var(--text2);}
+
+.empty{text-align:center;padding:50px 20px;color:var(--text3);}
+.empty .icon{font-size:36px;margin-bottom:10px;} .empty p{font-size:13px;}
+
+#toast{position:fixed;bottom:26px;right:26px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 17px;font-size:13px;box-shadow:var(--shadow);z-index:999;transform:translateY(18px);opacity:0;transition:all 0.25s;pointer-events:none;}
+#toast.show{transform:translateY(0);opacity:1;}
+
+/* ═══════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════ */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.dash-card h4{font-size:11px;font-weight:700;font-family:'Syne';text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:14px;}
+
+.pipe-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.pipe-lbl{width:76px;font-size:11px;text-align:right;flex-shrink:0;}
+.pipe-track{flex:1;background:var(--surface2);border-radius:100px;height:20px;overflow:hidden;}
+.pipe-fill{height:100%;border-radius:100px;display:flex;align-items:center;padding-left:9px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);white-space:nowrap;transition:width 0.5s;}
+.pipe-cnt{width:24px;text-align:right;font-size:12px;font-weight:700;}
+
+.rec-item{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.rec-item:last-child{border-bottom:none;} .rec-item:hover .rec-title{color:var(--accent);}
+.rec-dot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.rec-title{font-size:12.5px;font-weight:600;} .rec-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.rec-time{font-size:11px;color:var(--text3);white-space:nowrap;margin-left:auto;}
+
+.dept-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.dept-lbl{width:105px;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dept-track{flex:1;background:var(--surface2);border-radius:100px;height:7px;overflow:hidden;}
+.dept-fill{height:100%;border-radius:100px;}
+.dept-cnt{font-size:11px;font-weight:700;width:18px;text-align:right;}
+
+.ov-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.ov-row:last-child{border-bottom:none;} .ov-row:hover .ov-title{color:var(--accent);}
+.ov-info{flex:1;} .ov-title{font-size:12.5px;font-weight:600;} .ov-sub{font-size:11px;color:var(--text2);}
+.ov-days{font-size:12px;font-weight:700;color:var(--accent2);}
+
+/* ═══════════════════════════════════
+   VERTICAL FUNNEL
+═══════════════════════════════════ */
+.vf-wrap{display:flex;flex-direction:column;align-items:center;padding:0 0 60px;}
+.vf-stage{display:flex;flex-direction:column;align-items:center;transition:width 0.3s;}
+.vf-header{display:flex;align-items:center;justify-content:space-between;width:100%;padding:0 10px;margin-bottom:7px;}
+.vf-label{font-family:'Syne';font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:7px;}
+.vf-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;}
+.vf-desc{font-size:11px;color:var(--text3);}
+.vf-bar{height:3px;width:100%;border-radius:2px;margin-bottom:9px;opacity:0.3;}
+.vf-cards{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;min-height:48px;padding:6px 8px;border-radius:10px;transition:background 0.15s,outline 0.15s;}
+.vf-cards.drop-active{background:rgba(91,141,255,0.07);outline:2px dashed rgba(91,141,255,0.35);}
+.vf-card{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;min-width:145px;max-width:195px;flex:1;cursor:pointer;transition:all 0.15s;position:relative;user-select:none;}
+.vf-card:hover{transform:translateY(-2px);box-shadow:0 5px 18px rgba(0,0,0,0.4);}
+.vf-card.overdue{border-color:rgba(255,107,107,0.5);}
+.vf-card.warning{border-color:rgba(240,192,64,0.4);}
+.vf-card.dragging{opacity:0.3;transform:scale(0.96);}
+.vf-card[draggable="true"]{cursor:grab;}
+.vf-card[draggable="true"]:active{cursor:grabbing;}
+.vf-card-title{font-size:12px;font-weight:600;margin-bottom:3px;line-height:1.3;}
+.vf-card-dept{font-size:11px;color:var(--text2);margin-bottom:5px;}
+.vf-card-foot{display:flex;gap:4px;align-items:center;flex-wrap:wrap;}
+/* hover actions */
+.vf-card-actions{position:absolute;top:5px;right:5px;display:none;gap:3px;}
+.vf-card:hover .vf-card-actions{display:flex;}
+.vf-card-btn{background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:10px;padding:2px 5px;cursor:pointer;color:var(--text2);font-family:'DM Sans';}
+.vf-card-btn:hover{color:var(--accent);border-color:var(--accent);}
+.vf-empty{font-size:11px;color:var(--text3);padding:8px 4px;font-style:italic;}
+.vf-connector{width:100%;display:flex;justify-content:center;padding:5px 0;}
+.vf-side-div{border-top:1px dashed var(--border);display:flex;align-items:center;justify-content:center;margin:16px 0 12px;}
+.vf-side-div span{font-size:11px;color:var(--text3);background:var(--bg);padding:0 14px;}
+
+.edit-banner{background:rgba(91,141,255,0.08);border:1px solid rgba(91,141,255,0.22);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:13px;color:var(--accent);}
+.edit-banner.hidden{display:none;}
+
+/* ANALYTICS */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.chart-card h4{font-size:12px;font-weight:700;margin-bottom:14px;font-family:'Syne';}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.bar-lbl{width:80px;color:var(--text2);text-align:right;flex-shrink:0;font-size:11px;}
+.bar-track{flex:1;background:var(--surface2);border-radius:100px;height:7px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:100px;}
+.bar-val{width:28px;text-align:right;color:var(--text);font-weight:600;font-size:11px;}
+
+/* SETTINGS */
+.set-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+.set-section h3{font-size:14px;font-weight:700;margin-bottom:14px;font-family:'Syne';}
+.tl-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
+.tl-row:last-child{border-bottom:none;}
+.tl-row label{flex:1;font-size:13px;color:var(--text);margin:0;}
+.tl-row input{width:65px;text-align:center;}
+.tl-row span{font-size:12px;color:var(--text2);}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo"><h1>HireFlow</h1><span>Recruitment Tracker</span></div>
+  <div class="nav-item active" onclick="showView('dashboard')"><span>◈</span> Dashboard</div>
+  <div class="nav-item" onclick="showView('vfunnel')"><span>▽</span> Funnel View</div>
+  <div class="nav-item" onclick="showView('list')"><span>☰</span> All Positions</div>
+  <div class="nav-item" onclick="showView('reminders')">
+    <span>🔔</span> Reminders
+    <span class="badge-red" id="rem-badge">0</span>
+  </div>
+  <div class="nav-section">Reports</div>
+  <div class="nav-item" onclick="showView('analytics')"><span>◉</span> Analytics</div>
+  <div class="nav-section">Config</div>
+  <div class="nav-item" onclick="showView('settings')"><span>⚙</span> Settings</div>
+  <div class="sidebar-bottom"><div style="font-size:11px;color:var(--text3)">Internal HR · v1.2</div></div>
+</aside>
+
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="view active" id="view-dashboard">
+  <div class="topbar">
+    <h2>Dashboard</h2>
+    <button class="btn btn-primary" onclick="openAdd()">+ Add Position</button>
+  </div>
+  <div class="content">
+    <div class="stats-row s5" id="dash-stats"></div>
+    <div class="dash-grid">
+      <div class="dash-card"><h4>Pipeline Funnel</h4><div id="d-pipeline"></div></div>
+      <div class="dash-card"><h4>⚠ Needs Attention</h4><div id="d-overdue"></div></div>
+      <div class="dash-card"><h4>Open Positions by Dept</h4><div id="d-dept"></div></div>
+      <div class="dash-card"><h4>Recent Activity</h4><div id="d-activity"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- FUNNEL VIEW -->
+<div class="view" id="view-vfunnel">
+  <div class="topbar">
+    <h2>▽ Funnel View</h2>
+    <input type="text" class="search-box" placeholder="🔍 Search…" id="vf-search" oninput="renderVF()">
+    <select class="btn btn-ghost" id="vf-dept" onchange="renderVF()" style="padding:7px 12px;"></select>
+    <button class="btn btn-ghost btn-sm" id="btn-emode" onclick="toggleEdit()">✏ Edit Funnel</button>
+    <button class="btn btn-primary" onclick="openAdd()">+ Add Position</button>
+  </div>
+  <div class="content" style="padding:18px 24px;">
+    <div class="edit-banner hidden" id="edit-banner">
+      ✏ <strong>Edit Mode</strong> — Drag cards between stages &nbsp;·&nbsp; Hover card → click ✏ to edit details
+      <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="toggleEdit()">✓ Done</button>
+    </div>
+    <div class="vf-wrap" id="vf-board"></div>
+  </div>
+</div>
+
+<!-- ALL POSITIONS -->
+<div class="view" id="view-list">
+  <div class="topbar">
+    <h2>All Positions</h2>
+    <input type="text" class="search-box" placeholder="🔍 Search…" id="list-search" oninput="renderList()">
+    <select class="btn btn-ghost" id="list-stage" onchange="renderList()" style="padding:7px 12px;">
+      <option value="">All Stages</option>
+      <option value="applied">Applied</option><option value="screening">Screening</option>
+      <option value="interview">Interview</option><option value="offer">Offer</option>
+      <option value="hired">Hired</option><option value="rejected">Rejected</option>
+      <option value="onhold">On Hold</option>
+    </select>
+    <select class="btn btn-ghost" id="list-pri" onchange="renderList()" style="padding:7px 12px;">
+      <option value="">All Priorities</option>
+      <option value="high">High</option><option value="med">Medium</option><option value="low">Low</option>
+    </select>
+    <button class="btn btn-primary" onclick="openAdd()">+ Add Position</button>
+  </div>
+  <div class="content">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+      <table>
+        <thead><tr>
+          <th>Position</th><th>Department</th><th>Stage</th><th>Priority</th>
+          <th>Hiring Manager</th><th>Days Open</th><th>Target</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REMINDERS -->
+<div class="view" id="view-reminders">
+  <div class="topbar"><h2>🔔 Reminders</h2></div>
+  <div class="content"><div id="rem-list"></div></div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="view" id="view-analytics">
+  <div class="topbar"><h2>Analytics</h2></div>
+  <div class="content">
+    <div class="stats-row s5" id="an-stats"></div>
+    <div class="chart-row">
+      <div class="chart-card"><h4>Positions by Stage</h4><div id="ch-stage"></div></div>
+      <div class="chart-card"><h4>By Department</h4><div id="ch-dept"></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card"><h4>Avg Days per Stage</h4><div id="ch-speed"></div></div>
+      <div class="chart-card"><h4>Priority Breakdown</h4><div id="ch-pri"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="view" id="view-settings">
+  <div class="topbar"><h2>⚙ Settings</h2></div>
+  <div class="content">
+    <div class="set-section">
+      <h3>Stage Timeline Targets (days)</h3>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Positions exceeding their stage target will trigger reminders.</p>
+      <div id="tl-settings"></div>
+    </div>
+    <div class="set-section">
+      <h3>Reminder Thresholds</h3>
+      <div class="tl-row"><label>Warning alert</label><input type="number" id="warn-pct" value="75" min="10" max="100" onchange="saveSettings()"><span>% of target</span></div>
+      <div class="tl-row"><label>Critical alert</label><input type="number" id="crit-pct" value="100" min="50" max="200" onchange="saveSettings()"><span>% of target</span></div>
+    </div>
+    <div class="set-section">
+      <h3>Email Templates</h3>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">Variables: {position} {manager} {stage} {days} {target} {opened}</p>
+      <div id="email-tpl-settings"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div id="toast"></div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-bg hidden" id="modal-add">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modal-title">Add Position</h3><button class="modal-close" onclick="closeM('modal-add')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Position Title *</label><input type="text" id="f-title" placeholder="e.g. Senior Product Manager"></div>
+        <div class="form-group"><label>Department *</label><input type="text" id="f-dept" placeholder="e.g. Product"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Hiring Manager</label><input type="text" id="f-mgr" placeholder="Name"></div>
+        <div class="form-group"><label>Manager Email</label><input type="email" id="f-email" placeholder="manager@company.com"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Stage</label>
+          <select id="f-stage">
+            <option value="applied">Applied</option><option value="screening">Screening</option>
+            <option value="interview">Interview</option><option value="offer">Offer</option>
+            <option value="hired">Hired</option><option value="onhold">On Hold</option><option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Priority</label>
+          <select id="f-pri">
+            <option value="high">🔴 High</option><option value="med" selected>🟡 Medium</option><option value="low">🟢 Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Target Days to Fill</label><input type="number" id="f-days" placeholder="30" min="1"></div>
+        <div class="form-group"><label>Date Opened</label><input type="date" id="f-opened"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Headcount</label><input type="number" id="f-hc" value="1" min="1"></div>
+        <div class="form-group"><label>Location</label><input type="text" id="f-loc" placeholder="Bangkok / Remote"></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea id="f-notes" placeholder="Notes, requirements…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeM('modal-add')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePos()">Save Position</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-bg hidden" id="modal-detail">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <div style="flex:1">
+        <div id="dt-dept" style="font-size:11px;color:var(--text2);margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;"></div>
+        <h3 id="dt-title"></h3>
+      </div>
+      <button class="modal-close" onclick="closeM('modal-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="stage-progress" id="dt-progress"></div>
+      <div class="detail-section"><h4>Move to Stage</h4><div class="move-btns" id="dt-move"></div></div>
+      <div class="detail-section"><h4>Position Info</h4><div class="info-grid" id="dt-info"></div></div>
+      <div class="detail-section"><h4>Timeline</h4><div id="dt-timeline"></div></div>
+      <div class="detail-section" id="dt-notes-sec"><h4>Notes</h4><div id="dt-notes" style="font-size:13px;color:var(--text2);line-height:1.6;"></div></div>
+      <div class="detail-section"><h4>Activity Log</h4><div id="dt-activity"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="delPos()">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="openEmailM()">📧 Email</button>
+      <button class="btn btn-primary btn-sm" onclick="closeM('modal-detail')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="modal-bg hidden" id="modal-email">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-head"><h3>📧 Send Email</h3><button class="modal-close" onclick="closeM('modal-email')">✕</button></div>
+    <div class="modal-body">
+      <div class="etmpls" id="em-tmpls"></div>
+      <div class="form-group"><label>To</label><input type="email" id="em-to"></div>
+      <div class="form-group"><label>Subject</label><input type="text" id="em-sub"></div>
+      <div class="form-group"><label>Body</label><textarea id="em-body" style="min-height:170px;"></textarea></div>
+      <div style="background:rgba(91,141,255,0.07);border:1px solid rgba(91,141,255,0.2);border-radius:8px;padding:9px 13px;font-size:12px;color:var(--text2);">📋 Opens your email client with pre-filled content.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeM('modal-email')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendEmail()">Open Mail Client</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// CORE DATA
+// ══════════════════════════════════════
+const STAGES = [
+  {key:'applied',   label:'Applied',   color:'#5b8dff'},
+  {key:'screening', label:'Screening', color:'#f0c040'},
+  {key:'interview', label:'Interview', color:'#c084fc'},
+  {key:'offer',     label:'Offer',     color:'#2ecc71'},
+  {key:'hired',     label:'Hired',     color:'#00e5a0'},
+  {key:'rejected',  label:'Rejected',  color:'#ff6b6b'},
+  {key:'onhold',    label:'On Hold',   color:'#8892ab'},
+];
+const VF_MAIN  = ['applied','screening','interview','offer','hired'];
+const VF_SIDE  = ['onhold','rejected'];
+const VF_META  = {
+  applied:  {desc:'Received applications'},
+  screening:{desc:'Phone screen & review'},
+  interview:{desc:'Interviews in progress'},
+  offer:    {desc:'Offer extended'},
+  hired:    {desc:'Accepted · Onboarding'},
+  onhold:   {desc:'Paused / pending'},
+  rejected: {desc:'Not proceeding'},
+};
+
+const DEFAULT_SETTINGS = {
+  stageTargets:{applied:5,screening:7,interview:10,offer:3,hired:1,onhold:5},
+  warnPct:75, critPct:100,
+  emailTemplates:{
+    update:{label:'Status Update',subject:'Update on {position} Position',body:'Hi {manager},\n\nJust updating you on the {position} position — currently at {stage} stage.\n\nNext steps:\n\nBest regards,\nHR Team'},
+    interview:{label:'Interview Scheduled',subject:'Interview Scheduled – {position}',body:'Hi {manager},\n\nThe interview for {position} is scheduled.\n\nPosition: {position} | Stage: {stage} | Opened: {opened}\n\nPlease confirm your availability.\n\nBest regards,\nHR Team'},
+    offer:{label:'Offer Stage',subject:'Offer Ready – {position}',body:'Hi {manager},\n\nWe are ready to extend the offer for {position}.\n\nAction needed:\n– Approve offer letter\n– Confirm start date\n\nBest regards,\nHR Team'},
+    reminder:{label:'Overdue Reminder',subject:'⚠ Action Needed: {position}',body:'Hi {manager},\n\n{position} has been open for {days} days (target: {target} days).\nCurrent Stage: {stage}\n\nPlease take action to move this forward.\n\nBest regards,\nHR Team'},
+  }
+};
+
+const SAMPLE = [
+  {id:'p1',title:'Senior Product Manager',dept:'Product',manager:'Sarah Chen',managerEmail:'sarah@company.com',stage:'interview',priority:'high',targetDays:30,opened:'2025-02-15',headcount:1,location:'Bangkok',notes:'5+ yrs exp, fintech background preferred.',activity:[{text:'Moved to Interview',date:'2025-03-01'},{text:'Added',date:'2025-02-15'}]},
+  {id:'p2',title:'Frontend Engineer (React)',dept:'Engineering',manager:'Tom Walsh',managerEmail:'tom@company.com',stage:'screening',priority:'high',targetDays:21,opened:'2025-03-01',headcount:2,location:'Remote',notes:'React + TypeScript required.',activity:[{text:'Added',date:'2025-03-01'}]},
+  {id:'p3',title:'UX Designer',dept:'Design',manager:'Priya Nair',managerEmail:'priya@company.com',stage:'offer',priority:'med',targetDays:25,opened:'2025-02-01',headcount:1,location:'Bangkok',notes:'Portfolio review completed.',activity:[{text:'Moved to Offer',date:'2025-03-10'},{text:'Moved to Interview',date:'2025-02-20'},{text:'Added',date:'2025-02-01'}]},
+  {id:'p4',title:'Data Analyst',dept:'Analytics',manager:'Leo Park',managerEmail:'leo@company.com',stage:'applied',priority:'low',targetDays:35,opened:'2025-03-18',headcount:1,location:'Bangkok/Hybrid',notes:'',activity:[{text:'Added',date:'2025-03-18'}]},
+  {id:'p5',title:'Marketing Manager',dept:'Marketing',manager:'Sarah Chen',managerEmail:'sarah@company.com',stage:'hired',priority:'med',targetDays:28,opened:'2025-01-10',headcount:1,location:'Bangkok',notes:'Offer accepted.',activity:[{text:'Hired!',date:'2025-02-28'},{text:'Moved to Offer',date:'2025-02-15'},{text:'Added',date:'2025-01-10'}]},
+  {id:'p6',title:'DevOps Engineer',dept:'Engineering',manager:'Tom Walsh',managerEmail:'tom@company.com',stage:'interview',priority:'high',targetDays:20,opened:'2025-02-10',headcount:1,location:'Remote',notes:'K8s, CI/CD essential.',activity:[{text:'Moved to Interview',date:'2025-02-25'},{text:'Added',date:'2025-02-10'}]},
+  {id:'p7',title:'Finance Controller',dept:'Finance',manager:'Angela Liu',managerEmail:'angela@company.com',stage:'screening',priority:'med',targetDays:40,opened:'2025-01-20',headcount:1,location:'Bangkok',notes:'CPA required.',activity:[{text:'Moved to Screening',date:'2025-02-05'},{text:'Added',date:'2025-01-20'}]},
+  {id:'p8',title:'Customer Success Mgr',dept:'Customer Success',manager:'Priya Nair',managerEmail:'priya@company.com',stage:'onhold',priority:'low',targetDays:30,opened:'2025-02-01',headcount:1,location:'Bangkok',notes:'On hold pending budget.',activity:[{text:'Placed On Hold',date:'2025-03-01'},{text:'Added',date:'2025-02-01'}]},
+];
+
+let positions = JSON.parse(localStorage.getItem('hf_pos2') || JSON.stringify(SAMPLE));
+let settings  = JSON.parse(localStorage.getItem('hf_set2') || JSON.stringify(DEFAULT_SETTINGS));
+let curId     = null;
+let editMode  = false;
+let dragId    = null;
+
+const save = () => {
+  localStorage.setItem('hf_pos2', JSON.stringify(positions));
+  localStorage.setItem('hf_set2', JSON.stringify(settings));
+};
+
+// helpers
+const gStage  = k => STAGES.find(s=>s.key===k)||STAGES[0];
+const dOpen   = p => Math.max(0,Math.floor((Date.now()-new Date(p.opened))/86400000));
+const pct     = p => Math.min(150,Math.round((dOpen(p)/(p.targetDays||30))*100));
+const isOver  = p => pct(p) >= (settings.critPct||100);
+const isWarn  = p => !isOver(p) && pct(p) >= (settings.warnPct||75);
+const uid     = () => 'p'+Date.now()+Math.random().toString(36).slice(2,5);
+const fmt     = d => new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+const todayS  = () => new Date().toISOString().split('T')[0];
+
+// sync helper — refreshes whichever views are currently visible
+function syncAll(){
+  if(document.getElementById('view-dashboard').classList.contains('active')) renderDash();
+  if(document.getElementById('view-vfunnel').classList.contains('active'))   renderVF();
+  if(document.getElementById('view-list').classList.contains('active'))      renderList();
+  if(document.getElementById('view-reminders').classList.contains('active')) renderRem();
+  if(document.getElementById('view-analytics').classList.contains('active')) renderAnalytics();
+  document.getElementById('rem-badge').textContent = positions.filter(p=>isOver(p)&&p.stage!=='hired').length;
+}
+
+// nav
+function showView(v){
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  const nav=document.querySelector(`.nav-item[onclick="showView('${v}')"]`);
+  if(nav) nav.classList.add('active');
+  syncAll();
+}
+
+// ══════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════
+function renderDash(){
+  const total  = positions.length;
+  const active = positions.filter(p=>!['hired','rejected'].includes(p.stage)).length;
+  const overC  = positions.filter(p=>isOver(p)&&p.stage!=='hired').length;
+  const atOffer= positions.filter(p=>p.stage==='offer').length;
+  const hiredC = positions.filter(p=>p.stage==='hired').length;
+
+  document.getElementById('dash-stats').innerHTML=[
+    {n:total,  l:'Total Positions', s:'All time',       c:'var(--accent)'},
+    {n:active, l:'Active Open',     s:'In pipeline',    c:'var(--accent4)'},
+    {n:overC,  l:'Overdue',         s:'Need attention', c:'var(--accent2)'},
+    {n:atOffer,l:'At Offer',        s:'Ready to close', c:'var(--accent3)'},
+    {n:hiredC, l:'Hired',           s:'Closed',         c:'#00e5a0'},
+  ].map(s=>`<div class="stat-card" style="--ac:${s.c}">
+    <div class="stat-num" style="color:${s.c}">${s.n}</div>
+    <div class="stat-label">${s.l}</div><div class="stat-sub">${s.s}</div>
+  </div>`).join('');
+
+  // Pipeline bars
+  const mainSt = VF_MAIN.map(k=>gStage(k));
+  const maxC   = Math.max(...mainSt.map(s=>positions.filter(p=>p.stage===s.key).length),1);
+  document.getElementById('d-pipeline').innerHTML = mainSt.map(s=>{
+    const c=positions.filter(p=>p.stage===s.key).length;
+    const w=Math.max(6,Math.round((c/maxC)*100));
+    return `<div class="pipe-row">
+      <div class="pipe-lbl" style="color:${s.color}">${s.label}</div>
+      <div class="pipe-track">
+        <div class="pipe-fill" style="width:${w}%;background:${s.color};">${c>0?c:''}</div>
+      </div>
+      <div class="pipe-cnt">${c}</div>
+    </div>`;
+  }).join('');
+
+  // Overdue
+  const ovs=positions.filter(p=>isOver(p)&&!['hired','rejected'].includes(p.stage)).slice(0,6);
+  document.getElementById('d-overdue').innerHTML = ovs.length
+    ? ovs.map(p=>`<div class="ov-row" onclick="openDetail('${p.id}')">
+        <div class="ov-info"><div class="ov-title">${p.title}</div><div class="ov-sub">${p.dept} · ${gStage(p.stage).label}</div></div>
+        <div class="ov-days">${dOpen(p)}d</div>
+      </div>`).join('')
+    : `<div class="empty" style="padding:28px 10px"><div class="icon">✅</div><p>All on track!</p></div>`;
+
+  // By dept
+  const depts=[...new Set(positions.map(p=>p.dept))];
+  const dc=depts.map(d=>({d,c:positions.filter(p=>p.dept===d&&!['hired','rejected'].includes(p.stage)).length})).filter(x=>x.c>0).sort((a,b)=>b.c-a.c).slice(0,7);
+  const maxDC=Math.max(...dc.map(x=>x.c),1);
+  const cols=['#5b8dff','#f0c040','#c084fc','#2ecc71','#ff6b6b','#00e5a0','#f97316'];
+  document.getElementById('d-dept').innerHTML=dc.map((x,i)=>`
+    <div class="dept-row">
+      <div class="dept-lbl" title="${x.d}">${x.d}</div>
+      <div class="dept-track"><div class="dept-fill" style="width:${(x.c/maxDC)*100}%;background:${cols[i%cols.length]};"></div></div>
+      <div class="dept-cnt">${x.c}</div>
+    </div>`).join('');
+
+  // Recent activity
+  const acts=[];
+  positions.forEach(p=>(p.activity||[]).forEach(a=>acts.push({...a,pos:p})));
+  acts.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById('d-activity').innerHTML=acts.slice(0,8).map(a=>`
+    <div class="rec-item" onclick="openDetail('${a.pos.id}')">
+      <div class="rec-dot" style="background:${gStage(a.pos.stage).color};"></div>
+      <div style="flex:1"><div class="rec-title">${a.pos.title}</div><div class="rec-sub">${a.text}</div></div>
+      <div class="rec-time">${fmt(a.date)}</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════
+// VERTICAL FUNNEL + DRAG & DROP
+// ══════════════════════════════════════
+function toggleEdit(){
+  editMode=!editMode;
+  document.getElementById('edit-banner').classList.toggle('hidden',!editMode);
+  const btn=document.getElementById('btn-emode');
+  btn.textContent=editMode?'✓ Done':'✏ Edit Funnel';
+  btn.className=editMode?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
+  renderVF();
+}
+
+function renderVF(){
+  const q    =(document.getElementById('vf-search')||{}).value?.toLowerCase()||'';
+  const deptF=(document.getElementById('vf-dept')||{}).value||'';
+  // dept dropdown
+  const allDepts=[...new Set(positions.map(p=>p.dept))].sort();
+  const dSel=document.getElementById('vf-dept');
+  if(dSel){ const cur=dSel.value; dSel.innerHTML='<option value="">All Depts</option>'+allDepts.map(d=>`<option value="${d}"${d===cur?' selected':''}>${d}</option>`).join(''); }
+
+  const filtered=positions.filter(p=>{
+    const mq=!q||p.title.toLowerCase().includes(q)||p.dept.toLowerCase().includes(q)||(p.manager||'').toLowerCase().includes(q);
+    const md=!deptF||p.dept===deptF;
+    return mq&&md;
+  });
+
+  let html='';
+  const totalMain=VF_MAIN.length;
+
+  VF_MAIN.forEach((key,idx)=>{
+    const st=gStage(key);
+    const cards=filtered.filter(p=>p.stage===key);
+    const w=100-idx*(38/(totalMain-1)); // 100% → 62%
+    html+=buildVFStage(st,cards,w,key);
+    if(idx<totalMain-1){
+      const nc=gStage(VF_MAIN[idx+1]).color;
+      html+=`<div class="vf-connector" style="width:${w}%">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:3px 0">
+          <div style="width:2px;height:12px;background:linear-gradient(${st.color},${nc});opacity:0.3;"></div>
+          <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:7px solid ${nc};opacity:0.3;"></div>
+        </div>
+      </div>`;
+    }
+  });
+
+  // side outcomes
+  html+=`<div class="vf-side-div" style="width:80%"><span>Side Outcomes</span></div>`;
+  html+=`<div style="display:flex;gap:18px;width:80%">`;
+  VF_SIDE.forEach(key=>{
+    const st=gStage(key);
+    const cards=filtered.filter(p=>p.stage===key);
+    html+=`<div style="flex:1">${buildVFStage(st,cards,100,key)}</div>`;
+  });
+  html+=`</div>`;
+
+  document.getElementById('vf-board').innerHTML=html;
+  if(editMode) attachDrag();
+  else attachClick();
+}
+
+function buildVFStage(st, cards, w, key){
+  const cardsHtml=cards.length
+    ? cards.map(p=>{
+        const d=dOpen(p), ov=isOver(p), wa=isWarn(p);
+        const actions=editMode
+          ? `<div class="vf-card-actions"><span class="vf-card-btn" onclick="event.stopPropagation();curId='${p.id}';openEdit()">✏</span></div>`
+          : '';
+        const clickAttr=editMode?'':` onclick="openDetail('${p.id}')"`;
+        return `<div class="vf-card${ov?' overdue':wa?' warning':''}"
+            draggable="${editMode}"
+            data-id="${p.id}"
+            style="border-top:2px solid ${st.color}40;"
+            ${clickAttr}>
+          ${actions}
+          <div class="vf-card-title">${p.title}</div>
+          <div class="vf-card-dept">${p.dept}</div>
+          <div class="vf-card-foot">
+            <span class="tag ${p.priority==='high'?'ph':p.priority==='med'?'pm':'pl'}">${p.priority==='high'?'🔴':p.priority==='med'?'🟡':'🟢'} ${p.priority}</span>
+            <span class="tag" style="color:var(--text3)">${d}d</span>
+            ${ov?'<span style="font-size:10px">⚠</span>':wa?'<span style="font-size:10px">🕐</span>':''}
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="vf-empty">${editMode?'Drop here':'No positions'}</div>`;
+
+  const meta=VF_META[key]||{desc:''};
+  return `<div class="vf-stage" style="width:${w}%">
+    <div class="vf-header">
+      <div class="vf-label" style="color:${st.color}">
+        <span style="font-size:13px">●</span>${st.label}
+        <span class="vf-badge" style="background:${st.color}22;color:${st.color}">${cards.length}</span>
+      </div>
+      <div class="vf-desc">${meta.desc}</div>
+    </div>
+    <div class="vf-bar" style="background:${st.color}"></div>
+    <div class="vf-cards" data-stage="${key}">${cardsHtml}</div>
+  </div>`;
+}
+
+function attachClick(){
+  // cards already have onclick in non-edit mode, nothing extra needed
+}
+
+function attachDrag(){
+  document.querySelectorAll('.vf-card[draggable="true"]').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      dragId=card.dataset.id;
+      setTimeout(()=>card.classList.add('dragging'),0);
+    });
+    card.addEventListener('dragend',()=>{
+      card.classList.remove('dragging');
+      document.querySelectorAll('.vf-cards').forEach(z=>z.classList.remove('drop-active'));
+    });
+  });
+  document.querySelectorAll('.vf-cards').forEach(zone=>{
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drop-active');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('drop-active'));
+    zone.addEventListener('drop',e=>{
+      e.preventDefault();
+      zone.classList.remove('drop-active');
+      const ns=zone.dataset.stage;
+      if(!dragId||!ns) return;
+      const p=positions.find(x=>x.id===dragId);
+      if(!p||p.stage===ns) return;
+      const old=p.stage;
+      p.stage=ns;
+      p.activity=p.activity||[];
+      p.activity.unshift({text:`Moved ${gStage(old).label} → ${gStage(ns).label}`,date:todayS()});
+      save();
+      syncAll();
+      toast(`↔ Moved to ${gStage(ns).label}`);
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// ALL POSITIONS LIST
+// ══════════════════════════════════════
+function renderList(){
+  const q =(document.getElementById('list-search')||{}).value?.toLowerCase()||'';
+  const st=(document.getElementById('list-stage')||{}).value||'';
+  const pr=(document.getElementById('list-pri')||{}).value||'';
+  const filtered=positions.filter(p=>{
+    const mq=!q||p.title.toLowerCase().includes(q)||p.dept.toLowerCase().includes(q)||(p.manager||'').toLowerCase().includes(q);
+    return mq&&(!st||p.stage===st)&&(!pr||p.priority===pr);
+  });
+  const tb=document.getElementById('list-body');
+  if(!filtered.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="icon">📭</div><p>No positions found.</p></div></td></tr>`;return;}
+  tb.innerHTML=filtered.map(p=>{
+    const d=dOpen(p),ov=isOver(p),wa=isWarn(p);
+    const stg=gStage(p.stage);
+    return `<tr>
+      <td><span style="font-weight:600;cursor:pointer" onclick="openDetail('${p.id}')">${p.title}</span></td>
+      <td style="color:var(--text2)">${p.dept}</td>
+      <td><span class="stage-badge" style="background:${stg.color}22;color:${stg.color}">
+        <span class="stage-dot" style="background:${stg.color}"></span>${stg.label}
+      </span></td>
+      <td><span class="tag ${p.priority==='high'?'ph':p.priority==='med'?'pm':'pl'}">${p.priority}</span></td>
+      <td style="color:var(--text2)">${p.manager||'—'}</td>
+      <td style="font-weight:600;${ov?'color:var(--accent2)':''}">${d}d</td>
+      <td style="color:var(--text3)">${p.targetDays||'—'}d</td>
+      <td>${ov?'🔴':wa?'🟡':'🟢'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="openDetail('${p.id}')">View</button>
+        <button class="btn btn-edit btn-sm" onclick="curId='${p.id}';openEdit()" style="margin-left:4px;">✏ Edit</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// DETAIL MODAL
+// ══════════════════════════════════════
+function openDetail(id){
+  curId=id;
+  const p=positions.find(x=>x.id===id); if(!p) return;
+  document.getElementById('dt-title').textContent=p.title;
+  document.getElementById('dt-dept').textContent=p.dept;
+
+  const ci=VF_MAIN.indexOf(p.stage);
+  document.getElementById('dt-progress').innerHTML=VF_MAIN.map((s,i)=>{
+    const st=gStage(s);
+    const act=i===ci,dn=i<ci;
+    return `<div class="stage-step${act?' active':dn?' done':''}" style="${act?`--sc:${st.color}`:''}'">${st.label}</div>`;
+  }).join('');
+
+  document.getElementById('dt-move').innerHTML=STAGES.filter(s=>s.key!==p.stage).map(s=>
+    `<button class="btn btn-ghost btn-sm" onclick="moveStage('${id}','${s.key}')" style="border-color:${s.color}33;color:${s.color}">→ ${s.label}</button>`
+  ).join('');
+
+  const d=dOpen(p);
+  document.getElementById('dt-info').innerHTML=[
+    {l:'Hiring Manager',v:p.manager||'—'},{l:'Manager Email',v:p.managerEmail||'—'},
+    {l:'Priority',v:p.priority==='high'?'🔴 High':p.priority==='med'?'🟡 Medium':'🟢 Low'},
+    {l:'Headcount',v:p.headcount||1},{l:'Location',v:p.location||'—'},{l:'Opened',v:fmt(p.opened)},
+  ].map(i=>`<div class="info-item"><label>${i.l}</label><div class="val">${i.v}</div></div>`).join('');
+
+  const pv=Math.min(120,Math.round((d/(p.targetDays||30))*100));
+  const col=pv>=(settings.critPct||100)?'var(--accent2)':pv>=(settings.warnPct||75)?'var(--accent4)':'var(--accent3)';
+  document.getElementById('dt-timeline').innerHTML=`
+    <div style="font-size:13px;margin-bottom:5px">${d} days open of ${p.targetDays||30} target <strong style="color:${col}">(${pv}%)</strong></div>
+    <div class="timeline-bar"><div class="timeline-fill" style="width:${Math.min(100,pv)}%;background:${col}"></div></div>
+    <div class="timeline-label"><span>${fmt(p.opened)}</span><span>Target: ${p.targetDays||30}d</span></div>`;
+
+  document.getElementById('dt-notes-sec').style.display=p.notes?'block':'none';
+  document.getElementById('dt-notes').textContent=p.notes||'';
+  const acts=(p.activity||[]).slice(0,8);
+  document.getElementById('dt-activity').innerHTML=acts.length
+    ? acts.map(a=>`<div class="act-item"><div class="act-dot"></div><div style="flex:1">${a.text}</div><div class="act-time">${fmt(a.date)}</div></div>`).join('')
+    : '<div style="font-size:12px;color:var(--text3)">No activity yet.</div>';
+
+  openM('modal-detail');
+}
+
+function moveStage(id,ns){
+  const p=positions.find(x=>x.id===id); if(!p) return;
+  const old=p.stage;
+  p.stage=ns;
+  p.activity=p.activity||[];
+  p.activity.unshift({text:`Moved ${gStage(old).label} → ${gStage(ns).label}`,date:todayS()});
+  save(); closeM('modal-detail'); syncAll();
+  toast(`✅ Moved to ${gStage(ns).label}`);
+}
+
+// ══════════════════════════════════════
+// ADD / EDIT
+// ══════════════════════════════════════
+function openAdd(){
+  curId=null;
+  document.getElementById('modal-title').textContent='Add Position';
+  ['f-title','f-dept','f-mgr','f-email','f-loc','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-stage').value='applied';
+  document.getElementById('f-pri').value='med';
+  document.getElementById('f-days').value='';
+  document.getElementById('f-opened').value=todayS();
+  document.getElementById('f-hc').value=1;
+  openM('modal-add');
+}
+function openEdit(){
+  const p=positions.find(x=>x.id===curId); if(!p) return;
+  closeM('modal-detail');
+  document.getElementById('modal-title').textContent='Edit Position';
+  document.getElementById('f-title').value=p.title;
+  document.getElementById('f-dept').value=p.dept;
+  document.getElementById('f-mgr').value=p.manager||'';
+  document.getElementById('f-email').value=p.managerEmail||'';
+  document.getElementById('f-stage').value=p.stage;
+  document.getElementById('f-pri').value=p.priority;
+  document.getElementById('f-days').value=p.targetDays||'';
+  document.getElementById('f-opened').value=p.opened||'';
+  document.getElementById('f-hc').value=p.headcount||1;
+  document.getElementById('f-loc').value=p.location||'';
+  document.getElementById('f-notes').value=p.notes||'';
+  openM('modal-add');
+}
+function savePos(){
+  const title=document.getElementById('f-title').value.trim();
+  const dept=document.getElementById('f-dept').value.trim();
+  if(!title||!dept){toast('⚠ Title and Department required');return;}
+  const data={
+    title,dept,
+    manager:document.getElementById('f-mgr').value.trim(),
+    managerEmail:document.getElementById('f-email').value.trim(),
+    stage:document.getElementById('f-stage').value,
+    priority:document.getElementById('f-pri').value,
+    targetDays:parseInt(document.getElementById('f-days').value)||30,
+    opened:document.getElementById('f-opened').value||todayS(),
+    headcount:parseInt(document.getElementById('f-hc').value)||1,
+    location:document.getElementById('f-loc').value.trim(),
+    notes:document.getElementById('f-notes').value.trim(),
+  };
+  if(curId){
+    const p=positions.find(x=>x.id===curId);
+    const oldSt=p.stage;
+    Object.assign(p,data);
+    p.activity=p.activity||[];
+    if(oldSt!==data.stage) p.activity.unshift({text:`Moved to ${gStage(data.stage).label}`,date:todayS()});
+    else p.activity.unshift({text:'Position updated',date:todayS()});
+  } else {
+    positions.unshift({id:uid(),...data,activity:[{text:'Position created',date:todayS()}]});
+  }
+  save(); closeM('modal-add'); syncAll();
+  toast(curId?'✅ Updated':'✅ Position added');
+}
+function delPos(){
+  if(!confirm('Delete this position?')) return;
+  positions=positions.filter(p=>p.id!==curId);
+  save(); closeM('modal-detail'); syncAll();
+  toast('🗑 Deleted');
+}
+
+// ══════════════════════════════════════
+// EMAIL
+// ══════════════════════════════════════
+function openEmailM(){
+  const p=positions.find(x=>x.id===curId); if(!p) return;
+  document.getElementById('em-to').value=p.managerEmail||'';
+  const tmpls=settings.emailTemplates||DEFAULT_SETTINGS.emailTemplates;
+  document.getElementById('em-tmpls').innerHTML=Object.entries(tmpls).map(([k,t])=>
+    `<button class="etmpl-btn" onclick="applyTmpl('${k}')">${t.label}</button>`).join('');
+  applyTmpl('update');
+  openM('modal-email');
+}
+function applyTmpl(k){
+  const p=positions.find(x=>x.id===curId); if(!p) return;
+  const t=(settings.emailTemplates||DEFAULT_SETTINGS.emailTemplates)[k]; if(!t) return;
+  const r=s=>s.replace(/{position}/g,p.title).replace(/{stage}/g,gStage(p.stage).label)
+    .replace(/{manager}/g,p.manager||'Hiring Manager').replace(/{days}/g,dOpen(p))
+    .replace(/{target}/g,p.targetDays||30).replace(/{opened}/g,fmt(p.opened));
+  document.getElementById('em-sub').value=r(t.subject);
+  document.getElementById('em-body').value=r(t.body);
+}
+function sendEmail(){
+  const to=document.getElementById('em-to').value;
+  const sub=encodeURIComponent(document.getElementById('em-sub').value);
+  const body=encodeURIComponent(document.getElementById('em-body').value);
+  window.location.href=`mailto:${to}?subject=${sub}&body=${body}`;
+  const p=positions.find(x=>x.id===curId);
+  if(p){p.activity=p.activity||[];p.activity.unshift({text:`Email sent to ${to||'manager'}`,date:todayS()});save();}
+  closeM('modal-email');
+  toast('📧 Email client opened');
+}
+
+// ══════════════════════════════════════
+// REMINDERS
+// ══════════════════════════════════════
+function renderRem(){
+  const ovs=positions.filter(p=>isOver(p)&&!['hired','rejected'].includes(p.stage));
+  const was=positions.filter(p=>isWarn(p)&&!['hired','rejected'].includes(p.stage));
+  const all=[...ovs.map(p=>({p,t:'crit',ic:'🚨'})),...was.map(p=>({p,t:'warn',ic:'⏰'}))];
+  if(!all.length){document.getElementById('rem-list').innerHTML=`<div class="empty"><div class="icon">✅</div><p>All positions on track!</p></div>`;return;}
+  document.getElementById('rem-list').innerHTML=all.map(({p,t,ic})=>{
+    const d=dOpen(p),pv=pct(p);
+    return `<div class="rem-card ${t}">
+      <div class="rem-icon">${ic}</div>
+      <div class="rem-body">
+        <div class="rem-title">${p.title}</div>
+        <div class="rem-detail">${p.dept} · ${gStage(p.stage).label} · ${p.manager||'—'}</div>
+        <div style="margin-top:6px;max-width:280px">
+          <div class="timeline-bar"><div class="timeline-fill" style="width:${Math.min(100,pv)}%;background:${t==='crit'?'var(--accent2)':'var(--accent4)'};"></div></div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:700;color:${t==='crit'?'var(--accent2)':'var(--accent4)'}">${d}d / ${p.targetDays}d</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${pv}% of target</div>
+        <div style="display:flex;gap:5px;margin-top:7px;justify-content:flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="openDetail('${p.id}')">View</button>
+          <button class="btn btn-ghost btn-sm" onclick="curId='${p.id}';openEmailM()">📧</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// ANALYTICS
+// ══════════════════════════════════════
+function renderAnalytics(){
+  const total=positions.length,active=positions.filter(p=>!['hired','rejected'].includes(p.stage)).length;
+  const hired=positions.filter(p=>p.stage==='hired').length;
+  const avgD=total?Math.round(positions.reduce((a,p)=>a+dOpen(p),0)/total):0;
+  document.getElementById('an-stats').innerHTML=[
+    {n:total,l:'Total',c:'var(--accent)'},{n:active,l:'Active',c:'var(--accent4)'},
+    {n:hired,l:'Hired',c:'#00e5a0'},{n:avgD+'d',l:'Avg Days Open',c:'var(--accent5)'},
+    {n:positions.filter(isOver).length,l:'Overdue',c:'var(--accent2)'},
+  ].map(s=>`<div class="stat-card" style="--ac:${s.c}"><div class="stat-num" style="color:${s.c}">${s.n}</div><div class="stat-label">${s.l}</div></div>`).join('');
+
+  const sc=STAGES.map(s=>({l:s.label,c:positions.filter(p=>p.stage===s.key).length,col:s.color}));
+  const ms=Math.max(...sc.map(x=>x.c),1);
+  document.getElementById('ch-stage').innerHTML=sc.map(x=>`<div class="bar-row">
+    <span class="bar-lbl">${x.l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${(x.c/ms)*100}%;background:${x.col};"></div></div>
+    <span class="bar-val">${x.c}</span></div>`).join('');
+
+  const depts=[...new Set(positions.map(p=>p.dept))];
+  const dc=depts.map(d=>({d,c:positions.filter(p=>p.dept===d).length})).sort((a,b)=>b.c-a.c).slice(0,8);
+  const md=Math.max(...dc.map(x=>x.c),1);
+  const cc=['#5b8dff','#f0c040','#c084fc','#2ecc71','#ff6b6b','#00e5a0','#8892ab','#f97316'];
+  document.getElementById('ch-dept').innerHTML=dc.map((x,i)=>`<div class="bar-row">
+    <span class="bar-lbl">${x.d}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${(x.c/md)*100}%;background:${cc[i%cc.length]};"></div></div>
+    <span class="bar-val">${x.c}</span></div>`).join('');
+
+  const sp=STAGES.filter(s=>!['hired','rejected','onhold'].includes(s.key)).map(s=>{
+    const ps=positions.filter(p=>p.stage===s.key);
+    const avg=ps.length?Math.round(ps.reduce((a,p)=>a+dOpen(p),0)/ps.length):0;
+    return {l:s.label,avg,col:s.color,t:settings.stageTargets[s.key]||7};
+  });
+  const msp=Math.max(...sp.map(x=>x.avg),1);
+  document.getElementById('ch-speed').innerHTML=sp.map(x=>`<div class="bar-row">
+    <span class="bar-lbl">${x.l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${(x.avg/msp)*100}%;background:${x.avg>x.t?'var(--accent2)':x.col};"></div></div>
+    <span class="bar-val">${x.avg}d</span></div>`).join('');
+
+  const prs=[{k:'high',l:'High',c:'var(--accent2)'},{k:'med',l:'Medium',c:'var(--accent4)'},{k:'low',l:'Low',c:'var(--accent3)'}];
+  const mp=Math.max(...prs.map(p=>positions.filter(x=>x.priority===p.k).length),1);
+  document.getElementById('ch-pri').innerHTML=prs.map(p=>{
+    const cnt=positions.filter(x=>x.priority===p.k).length;
+    return `<div class="bar-row"><span class="bar-lbl">${p.l}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(cnt/mp)*100}%;background:${p.c};"></div></div>
+      <span class="bar-val">${cnt}</span></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════
+function renderSettings(){
+  document.getElementById('tl-settings').innerHTML=STAGES.filter(s=>!['hired','rejected'].includes(s.key)).map(s=>`
+    <div class="tl-row">
+      <label><span style="color:${s.color}">●</span> ${s.label}</label>
+      <input type="number" min="1" max="365" value="${settings.stageTargets[s.key]||7}"
+        onchange="settings.stageTargets['${s.key}']=parseInt(this.value)||7;save();toast('✅ Saved');">
+      <span>days</span>
+    </div>`).join('');
+  document.getElementById('warn-pct').value=settings.warnPct||75;
+  document.getElementById('crit-pct').value=settings.critPct||100;
+  const tmpls=settings.emailTemplates||DEFAULT_SETTINGS.emailTemplates;
+  document.getElementById('email-tpl-settings').innerHTML=Object.entries(tmpls).map(([k,t])=>`
+    <div style="margin-bottom:11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:7px;color:var(--accent)">${t.label}</div>
+      <div class="form-group" style="margin-bottom:7px;"><label>Subject</label>
+        <input type="text" value="${t.subject.replace(/"/g,'&quot;')}" onchange="settings.emailTemplates['${k}'].subject=this.value;save();">
+      </div>
+      <div class="form-group" style="margin-bottom:0"><label>Body</label>
+        <textarea style="min-height:85px" onchange="settings.emailTemplates['${k}'].body=this.value;save();">${t.body}</textarea>
+      </div>
+    </div>`).join('');
+}
+function saveSettings(){
+  settings.warnPct=parseInt(document.getElementById('warn-pct').value)||75;
+  settings.critPct=parseInt(document.getElementById('crit-pct').value)||100;
+  save(); toast('✅ Settings saved');
+}
+
+// ══════════════════════════════════════
+// MODAL HELPERS
+// ══════════════════════════════════════
+function openM(id){document.getElementById(id).classList.remove('hidden');}
+function closeM(id){document.getElementById(id).classList.add('hidden');}
+document.querySelectorAll('.modal-bg').forEach(bg=>{
+  bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.add('hidden');});
+});
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// INIT
+renderDash();
+</script>
+</body>
+</html>
