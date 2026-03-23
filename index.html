@@ -530,7 +530,7 @@ let dragId    = null;
 let isLoading = false;
 
 // Save settings locally only (lightweight)
-const saveSettings = () => localStorage.setItem('hf_set2', JSON.stringify(settings));
+// saveSettings defined below
 
 // Save = upsert to Supabase
 const save = async () => { /* positions saved individually via sbSavePos */ };
@@ -1196,7 +1196,8 @@ function renderSettings(){
 function saveSettings(){
   settings.warnPct=parseInt(document.getElementById('warn-pct').value)||75;
   settings.critPct=parseInt(document.getElementById('crit-pct').value)||100;
-  saveSettings(); toast('✅ Settings saved');
+  localStorage.setItem('hf_set2', JSON.stringify(settings));
+  toast('✅ Settings saved');
 }
 
 // ══════════════════════════════════════
@@ -1229,8 +1230,14 @@ function toggleMode(){
   }
 })();
 
-// INIT
-sbLoadAll();
+// INIT — load local data immediately so app works, then sync Supabase in background
+(function(){
+  const cached = localStorage.getItem('hf_pos2');
+  positions = cached ? JSON.parse(cached) : JSON.parse(JSON.stringify(SAMPLE));
+  syncAll();
+  // Try Supabase in background silently
+  sbLoadAll();
+})();
 </script>
 </body>
 </html>
