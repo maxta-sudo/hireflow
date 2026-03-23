@@ -499,16 +499,122 @@ const SAMPLE = [
   {id:'p8',title:'Customer Success Mgr',dept:'Customer Success',manager:'Priya Nair',managerEmail:'priya@company.com',stage:'onhold',priority:'low',targetDays:30,opened:'2025-02-01',headcount:1,location:'Bangkok',notes:'On hold pending budget.',activity:[{text:'Placed On Hold',date:'2025-03-01'},{text:'Added',date:'2025-02-01'}]},
 ];
 
-let positions = JSON.parse(localStorage.getItem('hf_pos2') || JSON.stringify(SAMPLE));
+// ══════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════
+const SB_URL = 'https://rfwzxbmbilpprcrfrpcu.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmd3p4Ym1iaWxwcHJjcmZycGN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNDc3ODEsImV4cCI6MjA4OTgyMzc4MX0.2c7uLXhFiGovYekyLz6TDkT5M5DbRO8YXnH55C1gWD4';
+
+async function sbFetch(method, path, body) {
+  const res = await fetch(SB_URL + '/rest/v1/' + path, {
+    method,
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : 'return=minimal'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (method === 'DELETE' || method === 'PATCH') return true;
+  const data = await res.json();
+  return data;
+}
+
+let positions = [];
 let settings  = JSON.parse(localStorage.getItem('hf_set2') || JSON.stringify(DEFAULT_SETTINGS));
 let curId     = null;
 let editMode  = false;
 let dragId    = null;
+let isLoading = false;
 
-const save = () => {
-  localStorage.setItem('hf_pos2', JSON.stringify(positions));
-  localStorage.setItem('hf_set2', JSON.stringify(settings));
-};
+// Save settings locally only (lightweight)
+const saveSettings = () => localStorage.setItem('hf_set2', JSON.stringify(settings));
+
+// Save = upsert to Supabase
+const save = async () => { /* positions saved individually via sbSavePos */ };
+
+async function sbLoadAll() {
+  showLoading(true);
+  try {
+    const rows = await sbFetch('GET', 'positions?order=created_at.desc');
+    if (Array.isArray(rows)) {
+      positions = rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        dept: r.dept,
+        manager: r.manager || '',
+        managerEmail: r.manager_email || '',
+        stage: r.stage,
+        priority: r.priority,
+        targetDays: r.target_days || 30,
+        opened: r.opened,
+        headcount: r.headcount || 1,
+        location: r.location || '',
+        notes: r.notes || '',
+        activity: r.activity || [],
+      }));
+    }
+  } catch(e) {
+    console.error('Load error', e);
+    toast('⚠ ไม่สามารถโหลดข้อมูลได้ ตรวจสอบการเชื่อมต่อ');
+  }
+  showLoading(false);
+  syncAll();
+}
+
+async function sbSavePos(p) {
+  const row = {
+    id: p.id,
+    title: p.title,
+    dept: p.dept,
+    manager: p.manager,
+    manager_email: p.managerEmail,
+    stage: p.stage,
+    priority: p.priority,
+    target_days: p.targetDays,
+    opened: p.opened,
+    headcount: p.headcount,
+    location: p.location,
+    notes: p.notes,
+    activity: p.activity,
+  };
+  await sbFetch('POST', 'positions', row);
+}
+
+async function sbUpdatePos(p) {
+  const row = {
+    title: p.title,
+    dept: p.dept,
+    manager: p.manager,
+    manager_email: p.managerEmail,
+    stage: p.stage,
+    priority: p.priority,
+    target_days: p.targetDays,
+    opened: p.opened,
+    headcount: p.headcount,
+    location: p.location,
+    notes: p.notes,
+    activity: p.activity,
+  };
+  await sbFetch('PATCH', 'positions?id=eq.' + p.id, row);
+}
+
+async function sbDeletePos(id) {
+  await sbFetch('DELETE', 'positions?id=eq.' + id);
+}
+
+function showLoading(on) {
+  let el = document.getElementById('loading-bar');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-bar';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;background:var(--accent);z-index:9999;transition:opacity 0.3s;';
+    document.body.appendChild(el);
+  }
+  el.style.opacity = on ? '1' : '0';
+  isLoading = on;
+}
 
 // helpers
 const gStage  = k => STAGES.find(s=>s.key===k)||STAGES[0];
@@ -726,7 +832,7 @@ function attachDrag(){
   document.querySelectorAll('.vf-cards').forEach(zone=>{
     zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drop-active');});
     zone.addEventListener('dragleave',()=>zone.classList.remove('drop-active'));
-    zone.addEventListener('drop',e=>{
+    zone.addEventListener('drop',async e=>{
       e.preventDefault();
       zone.classList.remove('drop-active');
       const ns=zone.dataset.stage;
@@ -737,8 +843,10 @@ function attachDrag(){
       p.stage=ns;
       p.activity=p.activity||[];
       p.activity.unshift({text:`Moved ${gStage(old).label} → ${gStage(ns).label}`,date:todayS()});
-      save();
       syncAll();
+      toast('⏳ กำลังบันทึก…');
+      await sbUpdatePos(p);
+      await sbLoadAll();
       toast(`↔ Moved to ${gStage(ns).label}`);
     });
   });
@@ -824,13 +932,16 @@ function openDetail(id){
   openM('modal-detail');
 }
 
-function moveStage(id,ns){
+async function moveStage(id,ns){
   const p=positions.find(x=>x.id===id); if(!p) return;
   const old=p.stage;
   p.stage=ns;
   p.activity=p.activity||[];
   p.activity.unshift({text:`Moved ${gStage(old).label} → ${gStage(ns).label}`,date:todayS()});
-  save(); closeM('modal-detail'); syncAll();
+  closeM('modal-detail');
+  toast('⏳ กำลังบันทึก…');
+  await sbUpdatePos(p);
+  await sbLoadAll();
   toast(`✅ Moved to ${gStage(ns).label}`);
 }
 
@@ -865,7 +976,7 @@ function openEdit(){
   document.getElementById('f-notes').value=p.notes||'';
   openM('modal-add');
 }
-function savePos(){
+async function savePos(){
   const title=document.getElementById('f-title').value.trim();
   const dept=document.getElementById('f-dept').value.trim();
   if(!title||!dept){toast('⚠ Title and Department required');return;}
@@ -888,23 +999,35 @@ function savePos(){
     p.activity=p.activity||[];
     if(oldSt!==data.stage) p.activity.unshift({text:`Moved to ${gStage(data.stage).label}`,date:todayS()});
     else p.activity.unshift({text:'Position updated',date:todayS()});
+    closeM('modal-add');
+    toast('⏳ กำลังบันทึก…');
+    await sbUpdatePos(p);
+    await sbLoadAll();
+    toast('✅ Updated');
   } else {
-    positions.unshift({id:uid(),...data,activity:[{text:'Position created',date:todayS()}]});
+    const newP={id:uid(),...data,activity:[{text:'Position created',date:todayS()}]};
+    positions.unshift(newP);
+    closeM('modal-add');
+    toast('⏳ กำลังบันทึก…');
+    await sbSavePos(newP);
+    await sbLoadAll();
+    toast('✅ Position added');
   }
-  save(); closeM('modal-add'); syncAll();
-  toast(curId?'✅ Updated':'✅ Position added');
 }
-function delPos(){
+async function delPos(){
   if(!confirm('Delete this position?')) return;
-  positions=positions.filter(p=>p.id!==curId);
-  save(); closeM('modal-detail'); syncAll();
+  closeM('modal-detail');
+  toast('⏳ กำลังลบ…');
+  await sbDeletePos(curId);
+  await sbLoadAll();
   toast('🗑 Deleted');
 }
-function delFromList(id){
+async function delFromList(id){
   const p=positions.find(x=>x.id===id); if(!p) return;
   if(!confirm('ลบ "'+p.title+'" ออกจากระบบ? ไม่สามารถกู้คืนได้')) return;
-  positions=positions.filter(x=>x.id!==id);
-  save(); syncAll();
+  toast('⏳ กำลังลบ…');
+  await sbDeletePos(id);
+  await sbLoadAll();
   toast('🗑 ลบเรียบร้อยแล้ว');
 }
 
@@ -929,13 +1052,13 @@ function applyTmpl(k){
   document.getElementById('em-sub').value=r(t.subject);
   document.getElementById('em-body').value=r(t.body);
 }
-function sendEmail(){
+async function sendEmail(){
   const to=document.getElementById('em-to').value;
   const sub=encodeURIComponent(document.getElementById('em-sub').value);
   const body=encodeURIComponent(document.getElementById('em-body').value);
   window.location.href=`mailto:${to}?subject=${sub}&body=${body}`;
   const p=positions.find(x=>x.id===curId);
-  if(p){p.activity=p.activity||[];p.activity.unshift({text:`Email sent to ${to||'manager'}`,date:todayS()});save();}
+  if(p){p.activity=p.activity||[];p.activity.unshift({text:`Email sent to ${to||'manager'}`,date:todayS()});await sbUpdatePos(p);}
   closeM('modal-email');
   toast('📧 Email client opened');
 }
@@ -1029,7 +1152,7 @@ function renderSettings(){
     <div class="tl-row">
       <label><span style="color:${s.color}">●</span> ${s.label}</label>
       <input type="number" min="1" max="365" value="${settings.stageTargets[s.key]||7}"
-        onchange="settings.stageTargets['${s.key}']=parseInt(this.value)||7;save();toast('✅ Saved');">
+        onchange="settings.stageTargets['${s.key}']=parseInt(this.value)||7;saveSettings();toast('✅ Saved');">
       <span>days</span>
     </div>`).join('');
   document.getElementById('warn-pct').value=settings.warnPct||75;
@@ -1039,17 +1162,17 @@ function renderSettings(){
     <div style="margin-bottom:11px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px;">
       <div style="font-size:13px;font-weight:600;margin-bottom:7px;color:var(--accent)">${t.label}</div>
       <div class="form-group" style="margin-bottom:7px;"><label>Subject</label>
-        <input type="text" value="${t.subject.replace(/"/g,'&quot;')}" onchange="settings.emailTemplates['${k}'].subject=this.value;save();">
+        <input type="text" value="${t.subject.replace(/"/g,'&quot;')}" onchange="settings.emailTemplates['${k}'].subject=this.value;saveSettings();">
       </div>
       <div class="form-group" style="margin-bottom:0"><label>Body</label>
-        <textarea style="min-height:85px" onchange="settings.emailTemplates['${k}'].body=this.value;save();">${t.body}</textarea>
+        <textarea style="min-height:85px" onchange="settings.emailTemplates['${k}'].body=this.value;saveSettings();">${t.body}</textarea>
       </div>
     </div>`).join('');
 }
 function saveSettings(){
   settings.warnPct=parseInt(document.getElementById('warn-pct').value)||75;
   settings.critPct=parseInt(document.getElementById('crit-pct').value)||100;
-  save(); toast('✅ Settings saved');
+  saveSettings(); toast('✅ Settings saved');
 }
 
 // ══════════════════════════════════════
@@ -1083,7 +1206,7 @@ function toggleMode(){
 })();
 
 // INIT
-renderDash();
+sbLoadAll();
 </script>
 </body>
 </html>
