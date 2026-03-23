@@ -238,6 +238,7 @@ tr:hover td{background:var(--surface2);}
   <div class="nav-item" onclick="showView('analytics')"><span>◉</span> Analytics</div>
   <div class="nav-section">Config</div>
   <div class="nav-item" onclick="showView('settings')"><span>⚙</span> Settings</div>
+  <div id="sb-status" style="font-size:10px;color:var(--text3);padding:8px 20px 0;word-break:break-all;">⏳ Connecting…</div>
   <div class="sidebar-bottom">
   <button onclick="toggleMode()" id="mode-btn" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text2);font-family:'DM Sans';font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.15s;">
     <span id="mode-icon">☀️</span><span id="mode-label">Light Mode</span>
@@ -537,7 +538,10 @@ const save = async () => { /* positions saved individually via sbSavePos */ };
 async function sbLoadAll() {
   showLoading(true);
   try {
-    const rows = await sbFetch('GET', 'positions?order=created_at.desc');
+    const rows = await Promise.race([
+      sbFetch('GET', 'positions?order=created_at.desc'),
+      new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')), 6000))
+    ]);
     if (Array.isArray(rows)) {
       positions = rows.map(r => ({
         id: r.id,
@@ -554,14 +558,34 @@ async function sbLoadAll() {
         notes: r.notes || '',
         activity: r.activity || [],
       }));
+      sbConnected = true;
+      document.getElementById('sb-status').textContent = '🟢 Connected to Supabase';
+      document.getElementById('sb-status').style.color = 'var(--accent3)';
+    } else {
+      throw new Error('Bad response: ' + JSON.stringify(rows));
     }
   } catch(e) {
-    console.error('Load error', e);
-    toast('⚠ ไม่สามารถโหลดข้อมูลได้ ตรวจสอบการเชื่อมต่อ');
+    console.error('Supabase load error:', e.message);
+    sbConnected = false;
+    document.getElementById('sb-status').textContent = '🔴 Supabase Error: ' + e.message;
+    document.getElementById('sb-status').style.color = 'var(--accent2)';
+    // Fall back to localStorage so app still works
+    const cached = localStorage.getItem('hf_pos2');
+    if (cached) {
+      positions = JSON.parse(cached);
+      toast('⚠ ใช้ข้อมูล local แทน (Supabase เชื่อมไม่ได้)');
+    } else {
+      positions = JSON.parse(JSON.stringify(SAMPLE));
+      toast('⚠ ใช้ข้อมูล sample (Supabase เชื่อมไม่ได้)');
+    }
   }
+  // Always cache locally as backup
+  localStorage.setItem('hf_pos2', JSON.stringify(positions));
   showLoading(false);
   syncAll();
 }
+
+let sbConnected = false;
 
 async function sbSavePos(p) {
   const row = {
